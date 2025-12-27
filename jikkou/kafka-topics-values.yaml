@@ -117,10 +117,12 @@ apps:
       - topic.CmBsmMessageCountProgressionEvents
       - topic.CmMapMessageCountProgressionEvents
       - topic.CmSpatMessageCountProgressionEvents
+      - topic.CmRtcmMessageCountProgressionEventAggregation
       - topic.CmEventStateProgressionEvent
       - topic.CmRevocableEnabledLaneAlignmentEvent
       - topic.CmSpatMinimumDataEventAggregation
       - topic.CmMapMinimumDataEventAggregation
+      - topic.CmRtcmMinimumDataEventAggregation
       - topic.CmIntersectionReferenceAlignmentEventAggregation
       - topic.CmSignalGroupAlignmentEventAggregation
       - topic.CmSignalStateConflictEventAggregation
