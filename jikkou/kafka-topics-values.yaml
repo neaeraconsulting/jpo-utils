@@ -133,6 +133,9 @@ apps:
       - topic.CmPriorityPreemptionRequestEvent
       - topic.CmVehicleMisbehaviorEvents
       - topic.CmPriorityRequestMetrics
+      - topic.CmRtcmMinimumDataEvents
+      - topic.CmRtcmBroadcastRateEvents
+      - topic.CmRtcmMessageCountProgressionEvents
     tableTopics:
       - topic.CmLaneDirectionOfTravelNotification
       - topic.CmConnectionOfTravelNotification
