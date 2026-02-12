@@ -404,6 +404,10 @@ apps:
         collectionName: CmPriorityRequestMetrics
         generateTimestamp: true
         timestampField: metricGeneratedAt
+      - topicName: topic.CmDynamicLaneActivationMetrics
+        collectionName: CmDynamicLaneActivationMetrics
+        generateTimestamp: true
+        timestampField: metricGeneratedAt
       
   mecdeposit:
     name: mecdeposit

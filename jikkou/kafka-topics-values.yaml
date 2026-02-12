@@ -133,6 +133,7 @@ apps:
       - topic.CmPriorityPreemptionRequestEvent
       - topic.CmVehicleMisbehaviorEvents
       - topic.CmPriorityRequestMetrics
+      - topic.CmDynamicLaneActivationMetrics
     tableTopics:
       - topic.CmLaneDirectionOfTravelNotification
       - topic.CmConnectionOfTravelNotification
