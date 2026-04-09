@@ -15,7 +15,8 @@ until ./jikkou health get kafkaconnect | yq -e '.status.name == "UP"' > /dev/nul
      RETRY_COUNT=$((RETRY_COUNT+1))
      sleep 10
      if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
-       break
+       echo "Quitting because retry count is >= max retries"
+       exit 1
      fi
 done
 
