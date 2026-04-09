@@ -109,6 +109,9 @@ apps:
       - topicName: topic.ProcessedSsm
         collectionName: ProcessedSsm
         generateTimestamp: true
+      - topicName: topic.ProcessedRtcm
+        collectionName: ProcessedRtcm
+        generateTimestamp: true
   intersection_api:
     name: intersection_api
     connectors:
