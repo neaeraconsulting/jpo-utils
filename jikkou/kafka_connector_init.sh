@@ -14,6 +14,10 @@ until ./jikkou health get kafkaconnect | yq -e '.status.name == "UP"' > /dev/nul
      echo "Waiting 10 sec for Kafka Connect to be ready (Attempt: $((RETRY_COUNT+1))/$MAX_RETRIES)"
      RETRY_COUNT=$((RETRY_COUNT+1))
      sleep 10
+     if [ "$RETRY_COUNT" -ge "$MAX_RETRIES" ]; then
+       echo "Quitting because retry count is >= max retries"
+       exit 1
+     fi
 done
 
 ./jikkou validate \
