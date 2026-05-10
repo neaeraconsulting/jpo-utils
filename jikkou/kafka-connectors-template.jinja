@@ -36,6 +36,13 @@ spec:
     {%+ if connector.generateTimestamp %}transforms.AddTimestamp.timestamp.field: recordGeneratedAt{% endif %}
     {%+ if connector.generateTimestamp %}transforms.AddTimestamp.type: org.apache.kafka.connect.transforms.InsertField$Value{% endif %}
 
+    {%+ if connector.generateUtcTimestamp %}transforms: AddUtcTimestamp,AddedUtcTimestampConverter{% endif %}
+    {%+ if connector.generateUtcTimestamp %}transforms.AddedUtcTimestampConverter.field: utcTimeStamp{% endif %}
+    {%+ if connector.generateUtcTimestamp %}transforms.AddedUtcTimestampConverter.target.type: Timestamp{% endif %}
+    {%+ if connector.generateUtcTimestamp %}transforms.AddedUtcTimestampConverter.type: org.apache.kafka.connect.transforms.TimestampConverter$Value{% endif %}
+    {%+ if connector.generateUtcTimestamp %}transforms.AddUtcTimestamp.timestamp.field: utcTimeStampTS{% endif %}
+    {%+ if connector.generateUtcTimestamp %}transforms.AddUtcTimestamp.type: org.apache.kafka.connect.transforms.InsertField$Value{% endif %}    
+
     {%+ if connector.useTimestamp %}transforms: TimestampConverter{% endif %}
     {%+ if connector.useTimestamp %}transforms.TimestampConverter.field: {{ connector.timestampField }}{% endif %}
     {%+ if connector.useTimestamp %}transforms.TimestampConverter.type: org.apache.kafka.connect.transforms.TimestampConverter$Value{% endif %}
