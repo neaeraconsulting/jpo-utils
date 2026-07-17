@@ -135,6 +135,7 @@ apps:
       - topic.CmPriorityPreemptionRequestEvent
       - topic.CmVehicleMisbehaviorEvents
       - topic.CmPriorityRequestMetrics
+      - topic.CmDynamicLaneActivationMetrics
       - topic.CmRtcmMinimumDataEvents
       - topic.CmRtcmBroadcastRateEvents
       - topic.CmRtcmMessageCountProgressionEvents
