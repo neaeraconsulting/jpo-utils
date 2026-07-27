@@ -7,9 +7,9 @@ services:
     image: prom/prometheus:v3.1.0
     hostname: prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}"
+      - "--storage.tsdb.path=/prometheus"
     ports:
       - 9090:9090
     restart: ${RESTART_POLICY:-on-failure:3}
@@ -48,7 +48,11 @@ services:
       - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -S http://localhost:3000/api/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --spider -S http://localhost:3000/api/health || exit 1",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -70,16 +74,52 @@ services:
     ports:
       - "9100:9100"
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     healthcheck:
       test: ["CMD", "wget", "--spider", "-S", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  cadvisor:
+    profiles:
+      - all
+      - monitoring_full
+      - cadvisor_exporter
+    image: gcr.io/cadvisor/cadvisor:v0.52.0
+    hostname: cadvisor
+    restart: ${RESTART_POLICY:-on-failure:3}
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - ip6net
+    ports:
+      - "8081:8080"
+    command:
+      - "--docker_only=true"
+      - "--housekeeping_interval=30s"
+      - "--store_container_labels=false"
+      - "--whitelisted_container_labels=com.docker.compose.service,com.docker.compose.project"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-S", "http://localhost:8080/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -103,9 +143,9 @@ services:
       KAFKA_LAG_EXPORTER_LOG_LEVEL: ${KAFKA_LAG_EXPORTER_LOG_LEVEL:-INFO}
       KAFKA_LAG_EXPORTER_KAFKA_LOG_LEVEL: ${KAFKA_LAG_EXPORTER_KAFKA_LOG_LEVEL:-ERROR}
     command:
-      - '/opt/docker/bin/kafka-lag-exporter'
-      - '-Dconfig.file=/opt/docker/conf/application.conf'
-      - '-Dlogback.configurationFile=/opt/docker/conf/logback.xml'
+      - "/opt/docker/bin/kafka-lag-exporter"
+      - "-Dconfig.file=/opt/docker/conf/application.conf"
+      - "-Dlogback.configurationFile=/opt/docker/conf/logback.xml"
     volumes:
       - ./monitoring/kafka-exporter:/opt/docker/conf
     healthcheck:
@@ -130,11 +170,11 @@ services:
     environment:
       MONGODB_URI: mongodb://${MONGO_EXPORTER_USERNAME:-exporter}:${MONGO_EXPORTER_PASSWORD:-replace_me}@${MONGO_IP:-mongo}:27017/?authSource=admin&directConnection=true
     command:
-      - '--web.listen-address=:9216'
-      - '--collect-all'
-      - '--mongodb.direct-connect=true'
-      - '--discovering-mode'
-      - '--log.level=warn'
+      - "--web.listen-address=:9216"
+      - "--collect-all"
+      - "--mongodb.direct-connect=true"
+      - "--discovering-mode"
+      - "--log.level=warn"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-S", "http://localhost:9216/metrics"]
       interval: 30s
