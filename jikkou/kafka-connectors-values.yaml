@@ -377,6 +377,18 @@ apps:
         collectionName: CmRevocableEnabledLaneAlignmentNotification
         generateTimestamp: true
         timestampField: eventGeneratedAt
+      - topicName: topic.CmSpatBroadcastRateNotification
+        collectionName: CmSpatBroadcastRateNotification
+        generateTimestamp: true
+        timestampField: notificationGeneratedAt
+      - topicName: topic.CmMapBroadcastRateNotification
+        collectionName: CmMapBroadcastRateNotification
+        generateTimestamp: true
+        timestampField: notificationGeneratedAt
+      - topicName: topic.CmRtcmBroadcastRateNotification
+        collectionName: CmRtcmBroadcastRateNotification
+        generateTimestamp: true
+        timestampField: notificationGeneratedAt
       - topicName: topic.CmIntersectionReferenceAlignmentNotificationAggregation
         collectionName: CmIntersectionReferenceAlignmentNotificationAggregation
         generateTimestamp: true
