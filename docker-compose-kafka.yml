@@ -149,7 +149,7 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: kafka-connect
-      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: ${CONNECT_URL:-http://connect:8083}
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: ${CONNECT_URL:-http://kafka-connect:8083}
     logging:
       options:
         max-size: "10m"
