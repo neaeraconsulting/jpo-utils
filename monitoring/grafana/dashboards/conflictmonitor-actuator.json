@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Conflict Monitor Micrometer metrics from /health/prometheus: JVM/process/system and cm_streams_* topology compute gauges (KafkaStreamsMetricsBinder).",
+  "description": "Conflict Monitor Micrometer metrics from /actuator/prometheus: JVM/process/system and cm_streams_* topology compute gauges.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -29,7 +29,7 @@
       "tags": [],
       "targetBlank": true,
       "title": "CM /health/streams/cpu",
-      "tooltip": "Ranked topology CPU summary JSON",
+      "tooltip": "Ranked topology activity summary",
       "type": "link",
       "url": "http://localhost:8082/health/streams/cpu"
     },
@@ -40,9 +40,9 @@
       "keepTime": false,
       "tags": [],
       "targetBlank": true,
-      "title": "Prometheus scrape (/health/prometheus)",
+      "title": "Prometheus scrape (/actuator/prometheus)",
       "type": "link",
-      "url": "http://localhost:8082/health/prometheus"
+      "url": "http://localhost:8082/actuator/prometheus"
     }
   ],
   "liveNow": false,
@@ -90,8 +90,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "process_cpu_usage{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "process",
+          "expr": "process_cpu_usage{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}}",
           "refId": "A"
         }
       ]
@@ -131,8 +131,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "system_cpu_usage{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "system",
+          "expr": "system_cpu_usage{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}}",
           "refId": "A"
         }
       ]
@@ -158,14 +158,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum(jvm_memory_used_bytes{job=~\"$job\", application=~\"$application\", area=\"heap\"})",
-          "legendFormat": "used",
+          "expr": "sum by (job, instance) (jvm_memory_used_bytes{job=~\"$job\", application=~\"$application\", area=\"heap\", instance=~\"$instance\"})",
+          "legendFormat": "{{job}} / {{instance}} used",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum(jvm_memory_max_bytes{job=~\"$job\", application=~\"$application\", area=\"heap\"})",
-          "legendFormat": "max",
+          "expr": "sum by (job, instance) (jvm_memory_max_bytes{job=~\"$job\", application=~\"$application\", area=\"heap\", instance=~\"$instance\"} >= 0)",
+          "legendFormat": "{{job}} / {{instance}} max",
           "refId": "B"
         }
       ]
@@ -202,15 +202,15 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "jvm_threads_live_threads{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "live",
+          "expr": "jvm_threads_live_threads{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}}",
           "refId": "A"
         }
       ]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Highest cm_streams_process_ratio across selected topologies (same ranking idea as /health/streams/cpu)",
+      "description": "Highest selected topology process ratio per JVM. This is a Kafka Streams wall-time fraction, not CPU utilization.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -243,8 +243,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "max(cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"})",
-          "legendFormat": "max process-ratio",
+          "expr": "max by (job, instance) (cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
+          "legendFormat": "{{job}} / {{instance}}",
           "refId": "A"
         }
       ]
@@ -259,47 +259,79 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Current process-ratio by topology. Highest values dominate CPU. Tags: topology, application_id from KafkaStreamsMetricsBinder.",
+      "description": "Current Kafka Streams wall-time gauges by topology and JVM. Tags: topology and application_id from KafkaStreamsMetricsBinder.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
-          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
-          "mappings": [],
-          "max": 1,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.5 },
-              { "color": "red", "value": 0.8 }
-            ]
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
           },
-          "unit": "percentunit"
+          "mappings": [],
+          "unit": "short"
         },
         "overrides": [
           {
             "matcher": { "id": "byName", "options": "Process Ratio" },
             "properties": [
-              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } },
-              { "id": "custom.width", "value": 160 }
+              {
+                "id": "custom.cellOptions",
+                "value": { "mode": "gradient", "type": "gauge" }
+              },
+              { "id": "custom.width", "value": 160 },
+              { "id": "unit", "value": "percentunit" },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 1 },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.5 },
+                    { "color": "red", "value": 0.8 }
+                  ]
+                }
+              }
             ]
           },
           {
             "matcher": { "id": "byName", "options": "Process Latency Avg" },
-            "properties": [{ "id": "unit", "value": "ms" }]
+            "properties": [
+              { "id": "unit", "value": "ms" }
+            ]
           },
           {
             "matcher": { "id": "byName", "options": "Process Latency Max" },
-            "properties": [{ "id": "unit", "value": "ms" }]
+            "properties": [
+              { "id": "unit", "value": "ms" }
+            ]
           },
           {
             "matcher": { "id": "byName", "options": "Process Rate" },
-            "properties": [{ "id": "unit", "value": "ops" }]
+            "properties": [
+              { "id": "unit", "value": "ops" }
+            ]
           },
           {
             "matcher": { "id": "byName", "options": "Poll Ratio" },
-            "properties": [{ "id": "unit", "value": "percentunit" }]
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 1 },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.5 },
+                    { "color": "red", "value": 0.8 }
+                  ]
+                }
+              }
+            ]
           }
         ]
       },
@@ -316,7 +348,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"}",
+          "expr": "max by (job, instance, topology, application_id) (cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "Process Ratio",
@@ -324,7 +356,7 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "cm_streams_process_latency_avg_ms{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"}",
+          "expr": "max by (job, instance, topology, application_id) (cm_streams_process_latency_avg_ms{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "Process Latency Avg",
@@ -332,7 +364,7 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "cm_streams_process_latency_max_ms{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"}",
+          "expr": "max by (job, instance, topology, application_id) (cm_streams_process_latency_max_ms{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "Process Latency Max",
@@ -340,7 +372,7 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "cm_streams_process_rate{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"}",
+          "expr": "max by (job, instance, topology, application_id) (cm_streams_process_rate{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "Process Rate",
@@ -348,7 +380,7 @@
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "cm_streams_poll_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"}",
+          "expr": "max by (job, instance, topology, application_id) (cm_streams_poll_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "Poll Ratio",
@@ -357,53 +389,32 @@
       ],
       "transformations": [
         {
-          "id": "seriesToColumns",
-          "options": { "byField": "topology" }
+          "id": "merge",
+          "options": {}
         },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
-              "Time": true,
-              "Time 1": true,
-              "Time 2": true,
-              "Time 3": true,
-              "Time 4": true,
-              "Time 5": true,
-              "__name__": true,
-              "__name__ 1": true,
-              "__name__ 2": true,
-              "__name__ 3": true,
-              "__name__ 4": true,
-              "__name__ 5": true,
-              "application": true,
-              "application 1": true,
-              "application 2": true,
-              "application 3": true,
-              "application 4": true,
-              "application 5": true,
-              "instance": true,
-              "instance 1": true,
-              "instance 2": true,
-              "instance 3": true,
-              "instance 4": true,
-              "instance 5": true,
-              "job": true,
-              "job 1": true,
-              "job 2": true,
-              "job 3": true,
-              "job 4": true,
-              "job 5": true
+              "Time": true
             },
-            "indexByName": {},
+            "indexByName": {
+              "job": 0,
+              "instance": 1,
+              "application_id": 2,
+              "topology": 3,
+              "Value #A": 4,
+              "Value #B": 5,
+              "Value #C": 6,
+              "Value #D": 7,
+              "Value #E": 8
+            },
             "renameByName": {
               "Value #A": "Process Ratio",
               "Value #B": "Process Latency Avg",
               "Value #C": "Process Latency Max",
               "Value #D": "Process Rate",
-              "Value #E": "Poll Ratio",
-              "application_id": "application_id",
-              "topology": "topology"
+              "Value #E": "Poll Ratio"
             }
           }
         }
@@ -411,7 +422,7 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Fraction of time each Streams thread spends processing. Highest topologies dominate CPU.",
+      "description": "Kafka Streams wall-time fraction for each topology and JVM; it is not CPU utilization.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -439,15 +450,15 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "avg by (topology, application_id) (cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"})",
-          "legendFormat": "{{topology}} ({{application_id}})",
+          "expr": "avg by (job, instance, topology, application_id) (cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
+          "legendFormat": "{{topology}} ({{application_id}}) / {{instance}} [{{job}}]",
           "refId": "A"
         }
       ]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Average process latency per topology (ms). Spikes indicate expensive per-record work.",
+      "description": "Average Kafka Streams thread processing latency, averaged across threads for each topology and JVM (ms).",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -473,8 +484,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "avg by (topology, application_id) (cm_streams_process_latency_avg_ms{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"})",
-          "legendFormat": "{{topology}} ({{application_id}})",
+          "expr": "avg by (job, instance, topology, application_id) (cm_streams_process_latency_avg_ms{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
+          "legendFormat": "{{topology}} ({{application_id}}) / {{instance}} [{{job}}]",
           "refId": "A"
         }
       ]
@@ -507,15 +518,15 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum by (topology, application_id) (cm_streams_process_rate{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"})",
-          "legendFormat": "{{topology}}",
+          "expr": "sum by (job, instance, topology, application_id) (cm_streams_process_rate{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
+          "legendFormat": "{{topology}} ({{application_id}}) / {{instance}} [{{job}}]",
           "refId": "A"
         }
       ]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Poll ratio — high with low process-ratio can mean waiting on input; low poll + high process = CPU-bound topology",
+      "description": "Kafka Streams poll wall-time fraction by topology and JVM. It describes time spent polling and does not by itself indicate CPU-bound behavior.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -543,15 +554,15 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "avg by (topology, application_id) (cm_streams_poll_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"})",
-          "legendFormat": "{{topology}}",
+          "expr": "avg by (job, instance, topology, application_id) (cm_streams_poll_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
+          "legendFormat": "{{topology}} ({{application_id}}) / {{instance}} [{{job}}]",
           "refId": "A"
         }
       ]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Max process latency — outliers often indicate geometry/join spikes",
+      "description": "Maximum Kafka Streams thread processing latency per topology and JVM (ms).",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "palette-classic" },
@@ -577,8 +588,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "max by (topology, application_id) (cm_streams_process_latency_max_ms{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"})",
-          "legendFormat": "{{topology}}",
+          "expr": "max by (job, instance, topology, application_id) (cm_streams_process_latency_max_ms{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
+          "legendFormat": "{{topology}} ({{application_id}}) / {{instance}} [{{job}}]",
           "refId": "A"
         }
       ]
@@ -618,14 +629,14 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "process_cpu_usage{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "process",
+          "expr": "process_cpu_usage{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}} process CPU",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "system_cpu_usage{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "system",
+          "expr": "system_cpu_usage{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}} system CPU",
           "refId": "B"
         }
       ]
@@ -657,8 +668,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum by (area) (jvm_memory_used_bytes{job=~\"$job\", application=~\"$application\"})",
-          "legendFormat": "{{area}} used",
+          "expr": "sum by (job, instance, area) (jvm_memory_used_bytes{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"})",
+          "legendFormat": "{{job}} / {{instance}} {{area}} used",
           "refId": "A"
         }
       ]
@@ -676,7 +687,7 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "s"
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -691,8 +702,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "sum by (action) (rate(jvm_gc_pause_seconds_sum{job=~\"$job\", application=~\"$application\"}[5m]))",
-          "legendFormat": "{{action}}",
+          "expr": "sum by (job, instance, action) (rate(jvm_gc_pause_seconds_sum{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{job}} / {{instance}} {{action}}",
           "refId": "A"
         }
       ]
@@ -724,20 +735,20 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "jvm_threads_live_threads{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "live",
+          "expr": "jvm_threads_live_threads{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}} live",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "jvm_threads_daemon_threads{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "daemon",
+          "expr": "jvm_threads_daemon_threads{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}} daemon",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "jvm_threads_peak_threads{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "peak",
+          "expr": "jvm_threads_peak_threads{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}} peak",
           "refId": "C"
         }
       ]
@@ -767,8 +778,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "process_uptime_seconds{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "uptime",
+          "expr": "process_uptime_seconds{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}}",
           "refId": "A"
         }
       ]
@@ -802,15 +813,15 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "system_cpu_count{job=~\"$job\", application=~\"$application\"}",
-          "legendFormat": "cpus",
+          "expr": "system_cpu_count{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}",
+          "legendFormat": "{{job}} / {{instance}}",
           "refId": "A"
         }
       ]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Count of topologies currently exporting cm_streams_process_ratio",
+      "description": "Count of registered cm_streams_process_ratio gauge series by JVM. Gauges are reset to zero when a topology stops, so this count does not show which topologies are running.",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
@@ -832,13 +843,13 @@
         "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "textMode": "auto"
       },
-      "title": "Bound Topologies",
+      "title": "Registered Topology Gauges",
       "type": "stat",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "count(cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\"})",
-          "legendFormat": "topologies",
+          "expr": "count by (job, instance) (cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", topology=~\"$topology\", instance=~\"$instance\"})",
+          "legendFormat": "{{job}} / {{instance}}",
           "refId": "A"
         }
       ]
@@ -866,19 +877,16 @@
         "allValue": ".*",
         "current": { "selected": true, "text": "conflictmonitor", "value": "conflictmonitor" },
         "datasource": { "type": "prometheus", "uid": "${datasource}" },
-        "definition": "label_values(up, job)",
+        "definition": "label_values(process_uptime_seconds{application=\"conflictmonitor\"},job)",
         "hide": 0,
         "includeAll": true,
         "label": "Job",
         "multi": true,
         "name": "job",
         "options": [],
-        "query": {
-          "query": "label_values(up, job)",
-          "refId": "StandardVariableQuery"
-        },
+        "query": { "query": "label_values(process_uptime_seconds{application=\"conflictmonitor\"},job)", "refId": "StandardVariableQuery" },
         "refresh": 2,
-        "regex": ".*conflictmonitor.*|prometheus",
+        "regex": "",
         "sort": 1,
         "type": "query"
       },
@@ -893,10 +901,7 @@
         "multi": false,
         "name": "application",
         "options": [],
-        "query": {
-          "query": "label_values(process_cpu_usage{job=~\"$job\"}, application)",
-          "refId": "StandardVariableQuery"
-        },
+        "query": { "query": "label_values(process_cpu_usage{job=~\"$job\"}, application)", "refId": "StandardVariableQuery" },
         "refresh": 2,
         "regex": "",
         "sort": 1,
@@ -906,17 +911,31 @@
         "allValue": ".*",
         "current": { "selected": true, "text": "All", "value": "$__all" },
         "datasource": { "type": "prometheus", "uid": "${datasource}" },
-        "definition": "label_values(cm_streams_process_ratio{job=~\"$job\", application=~\"$application\"}, topology)",
+        "definition": "label_values(process_uptime_seconds{job=~\"$job\", application=~\"$application\"}, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": { "query": "label_values(process_uptime_seconds{job=~\"$job\", application=~\"$application\"}, instance)", "refId": "StandardVariableQuery" },
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": { "selected": true, "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "definition": "label_values(cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}, topology)",
         "hide": 0,
         "includeAll": true,
         "label": "Topology",
         "multi": true,
         "name": "topology",
         "options": [],
-        "query": {
-          "query": "label_values(cm_streams_process_ratio{job=~\"$job\", application=~\"$application\"}, topology)",
-          "refId": "StandardVariableQuery"
-        },
+        "query": { "query": "label_values(cm_streams_process_ratio{job=~\"$job\", application=~\"$application\", instance=~\"$instance\"}, topology)", "refId": "StandardVariableQuery" },
         "refresh": 2,
         "regex": "",
         "sort": 1,
@@ -929,6 +948,6 @@
   "timezone": "browser",
   "title": "Conflict Monitor — Actuator & Streams",
   "uid": "cm-actuator-streams",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

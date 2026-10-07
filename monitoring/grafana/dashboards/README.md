@@ -7,39 +7,40 @@ UID: `cm-actuator-streams` · Title: **Conflict Monitor — Actuator & Streams**
 
 ### Metrics covered
 
-Published by Conflict Monitor and scraped from `/health/prometheus` (preferred) or `/actuator/prometheus`.
+Published by Conflict Monitor and scraped from `/actuator/prometheus`.
 
 | Source | Prometheus names | Tags |
 |--------|------------------|------|
 | Micrometer JVM / process / system binders | `process_cpu_usage`, `system_cpu_usage`, `system_cpu_count`, `process_uptime_seconds`, `jvm_memory_*`, `jvm_threads_*`, `jvm_gc_pause_*` | `application=conflictmonitor` |
-| `KafkaStreamsMetricsBinder` | `cm_streams_process_ratio`, `cm_streams_process_latency_avg_ms`, `cm_streams_process_latency_max_ms`, `cm_streams_process_rate`, `cm_streams_poll_ratio` | `topology`, `application_id`, `application` |
+| `KafkaStreamsMetricsBinder` | `cm_streams_process_ratio`, `cm_streams_process_latency_avg_ms`, `cm_streams_process_latency_max_ms`, `cm_streams_process_rate`, `cm_streams_poll_ratio` | `topology`, `application_id`, `application`, plus scrape labels `job` and `instance` |
 
 Dashboard panels:
 
 1. **Overview** — process/system CPU, heap, live threads, max topology process ratio  
 2. **Kafka Streams Topology Compute** — snapshot table of all five `cm_streams_*` gauges (sorted by process ratio), plus time series for process ratio, latency avg/max, process rate, and poll ratio  
-3. **JVM / Process Detail** — CPU over time, memory by area, GC pause rate, threads, uptime, CPU count, bound topology count
+3. **JVM / Process Detail** — CPU over time, memory by area, GC pause rate, threads, uptime, CPU count, registered topology gauge count
 
-Native Micrometer Kafka / Kafka Streams binders are **disabled** (variable tag keys break Prometheus scrape). Use `cm_streams_*` only.
+The dashboard scopes series by job and instance so JVMs remain distinct when multiple targets are selected. The custom `cm_streams_*` gauges are sufficient for the topology panels. Optional native Micrometer Kafka metrics appear only when instrumented clients register them.
 
 ### Requirements
 
 1. Conflict Monitor running with scrape on port **8082**
-2. Prometheus job `conflictmonitor` in [`../../prometheus/prometheus.yml`](../../prometheus/prometheus.yml) (`metrics_path: /health/prometheus`)
+2. Prometheus job `conflictmonitor` in [`../../prometheus/prometheus.yml`](../../prometheus/prometheus.yml) (`metrics_path: /actuator/prometheus`)
 3. Monitoring stack up from `jpo-utils` (e.g. `docker compose -f docker-compose.yml --profile monitoring_full up`)
 
 Open Grafana → **Conflict Monitor — Actuator & Streams**.
 
-Template variables: Datasource · Job · Application · Topology.
+Template variables: Datasource · Job · Application · Instance · Topology.
 
 ### Verify scrape
 
 ```bash
-curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:8082/health/prometheus
 curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:8082/actuator/prometheus
-curl -sS http://localhost:8082/health/prometheus | findstr cm_streams
+curl -sS http://localhost:8082/actuator/prometheus | findstr cm_streams
 curl -sS http://localhost:8082/health/streams/cpu
 ```
+
+The process and poll ratios are Kafka Streams wall-time fractions averaged across thread metrics, so they indicate topology activity rather than CPU utilization. Use `process_cpu_usage` for JVM CPU. Process latency gauges are milliseconds; GC pause rate is seconds of pause per second. Registered topology gauges reset to zero when a topology stops, so the count does not prove that topologies are running.
 
 Quick cross-check without Grafana: [http://localhost:8082/health/streams/cpu](http://localhost:8082/health/streams/cpu)
 
