@@ -25,6 +25,7 @@ The JPO ITS utilities repository serves as a central location for deploying open
   - [5. Monitoring Stack](#5-monitoring-stack)
     - [Configuration](#configuration-1)
     - [Quick Run](#quick-run-3)
+    - [Grafana Dashboards](#grafana-dashboards)
     - [Scrape Configurations](#scrape-configurations)
   - [Security Notice](#security-notice)
 
@@ -213,7 +214,7 @@ The following environment variables can be used to configure Kafka Connectors:
 
 ## 5. Monitoring Stack
 
-The monitoring stack consists of Prometheus for metrics collection and Grafana for visualization, along with several exporters that collect metrics from different services. The configuration is defined in [docker-compose-monitoring.yml](docker-compose-monitoring.yml).
+The monitoring stack consists of Prometheus for metrics collection and Grafana for visualization, along with exporters for host, container, Kafka lag, and MongoDB metrics. The configuration is defined in [docker-compose-monitoring.yml](docker-compose-monitoring.yml). Grafana dashboards under [monitoring/grafana/dashboards](monitoring/grafana/dashboards) are provisioned automatically when Grafana starts.
 
 Set the `COMPOSE_PROFILES` environmental variable as follows:
 
@@ -221,12 +222,13 @@ Set the `COMPOSE_PROFILES` environmental variable as follows:
   - `prometheus` - deploys only the Prometheus service
   - `grafana` - deploys only the Grafana service
   - `node_exporter` - deploys only the Node Exporter service for system metrics
+  - `cadvisor_exporter` - deploys only the cAdvisor service for container metrics
   - `kafka_exporter` - deploys only the Kafka Lag Exporter service
   - `mongodb_exporter` - deploys only the MongoDB Exporter service
 
 ### Configuration
 
-The following environment variables can be used to configure the monitoring stack:
+The following environment variables can be used to configure the monitoring stack (see [sample.env](sample.env)):
 
 | Environment Variable | Description |
 |---|---|
@@ -248,19 +250,38 @@ The following environment variables can be used to configure the monitoring stac
    - Prometheus: `http://localhost:9090`
 6. The following metrics endpoints will be available:
    - Node Exporter: `http://localhost:9100/metrics`
+   - cAdvisor: `http://localhost:8081/metrics` (container metrics; Docker-only, privileged)
    - Kafka Lag Exporter: `http://localhost:8000/metrics`
    - MongoDB Exporter: `http://localhost:9216/metrics`
 
+### Grafana Dashboards
+
+Provisioned dashboards (details in [monitoring/grafana/dashboards/README.md](monitoring/grafana/dashboards/README.md)):
+
+| Dashboard | File | Purpose |
+|---|---|---|
+| **ODE Metrics** | [`ode-mec-deposit.json`](monitoring/grafana/dashboards/ode-mec-deposit.json) | ODE Kafka produce rates and MEC Deposit MQTT publish/latency/staleness |
+| **Conflict Monitor — Actuator & Streams** | [`conflictmonitor-actuator.json`](monitoring/grafana/dashboards/conflictmonitor-actuator.json) | Conflict Monitor JVM/process and Kafka Streams topology metrics |
+| **Node Exporter Full** | [`node-exporter-1860_rev37.json`](monitoring/grafana/dashboards/node-exporter-1860_rev37.json) | Host system metrics |
+| **Kafka Lag Exporter** | [`kafka-lag-exporter.json`](monitoring/grafana/dashboards/kafka-lag-exporter.json) | Consumer lag |
+| **MongoDB Dashboard** | [`mongo-exporter.json`](monitoring/grafana/dashboards/mongo-exporter.json) | MongoDB metrics |
+
+Application dashboards (ODE / MEC Deposit / Conflict Monitor) need those services reachable on the Docker network so Prometheus can scrape them.
+
 ### Scrape Configurations
 
-The scrape configurations for the monitoring stack are defined in the [prometheus.yml](monitoring/prometheus/prometheus.yml) file. If you would like to add a new scrape configuration, you can do so by adding a new job to the `scrape_configs` section. Please note that this file doesn't support environment variables, so you will need to manually edit the file.
+The scrape configurations for the monitoring stack are defined in [prometheus.yml](monitoring/prometheus/prometheus.yml). To add a new scrape target, add a job under `scrape_configs`. That file does not support environment variables, so edit it directly.
 
-The following scrape configurations are available:
-
-- `prometheus` - scrapes the Prometheus metrics
-- `node_exporter` - scrapes the Node Exporter metrics
-- `kafka_exporter` - scrapes the Kafka Lag Exporter metrics
-- `mongodb_exporter` - scrapes the MongoDB Exporter metrics
+| Job | Target | Notes |
+|---|---|---|
+| `prometheus` | `localhost:9090` | Prometheus self-metrics |
+| `node-exporter` | `node-exporter:9100` | Host metrics |
+| `cadvisor` | `cadvisor:8080` | Container metrics (published on host as `8081`) |
+| `kafka-exporter` | `kafka-exporter:8000` | Kafka lag |
+| `mongodb-exporter` | `mongodb-exporter:9216` | MongoDB (`/metrics`) |
+| `jpo-ode-svcs` | `ode:8080` | ODE `/actuator/prometheus` (15s interval, `application=ode`) |
+| `jpo-mec-deposit` | `mec-deposit:8080` | MEC Deposit `/actuator/prometheus` (15s interval, `application=mec-deposit`) |
+| `conflictmonitor` | `conflictmonitor:8082` | Conflict Monitor `/actuator/prometheus` (15s interval, `application=conflictmonitor`) |
 
 [Back to top](#toc)
 
