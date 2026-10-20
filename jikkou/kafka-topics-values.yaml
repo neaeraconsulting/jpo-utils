@@ -146,6 +146,9 @@ apps:
       - topic.CmSignalStateConflictNotification
       - topic.CmSignalGroupAlignmentNotification
       - topic.CmIntersectionReferenceAlignmentNotification
+      - topic.CmSpatBroadcastRateNotification
+      - topic.CmMapBroadcastRateNotification
+      - topic.CmRtcmBroadcastRateNotification
       - topic.CmLaneDirectionOfTravelAssessment
       - topic.CmConnectionOfTravelAssessment
       - topic.CmDefaultConfigTable
