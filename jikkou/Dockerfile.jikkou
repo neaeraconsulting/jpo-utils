@@ -3,8 +3,10 @@ FROM streamthoughts/jikkou:0.35.7
 # Root user is required to run the 'jikkou apply' command in the kafka_init.sh script
 USER root
 
+# Apply Alpine security updates: the jikkou 0.35.7 base (Alpine 3.18.3) ships
+# libssl3/libcrypto3 (CVE-2023-5363, CVE-2024-6119) and musl (CVE-2025-26519) with fixes available.
 # install yq for kafka connect status check
-RUN apk add yq
+RUN apk upgrade --no-cache && apk add --no-cache yq
 
 COPY ./application.conf /app/application.conf
 COPY ./jikkouconfig /etc/jikkou/config

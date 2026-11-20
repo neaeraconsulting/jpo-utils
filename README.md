@@ -61,6 +61,8 @@ You must rename `sample.env` to `.env` for Docker to automatically read the file
 
 A MongoDB instance that is initialized as a standalone replica-set and has configured users is configured in the [docker-compose-mongo](docker-compose-mongo.yml) file. To use a different `setup_mongo.sh` or `create_indexes.js` script, pass in the relative path of the new script by overriding the `KAFKA_INIT_SCRIPT_RELATIVE_PATH` or `MONGO_CREATE_INDEXES_SCRIPT_RELATIVE_PATH` environmental variables. These scripts facilitate the initialization of the MongoDB Database along with the created indexes.
 
+The `mongo` and `mongo-setup` services use the official `mongo` image pinned to the MongoDB 8.0 LTS line by version tag and multi-platform SHA-256 digest (currently `8.0.34`, which ships `libbrotli1` `1.1.0-2ubuntu0.1` and resolves CVE-2026-111497). Update both the tag and the digest when upgrading. Existing data volumes created by a newer MongoDB release (for example, from the previous floating `mongo:8` tag, which now resolves to 8.3) may have a higher `featureCompatibilityVersion` and will not start under 8.0; recreate local development volumes if `mongod` reports an FCV error.
+
 Where the `COMPOSE_PROFILES` variable in you're `.env` file are as follows:
 
 - `mongo_full` - deploys all resources in the [docker-compose-mongo.yml](docker-compose-mongo.yml) file
@@ -101,6 +103,10 @@ During operation, Kafka stores all the messages published to topics in files cal
 
 The Kafka topics created by the `kafka-setup` service are configured in the [kafka-topics-values.yaml](jikkou/kafka-topics-values.yaml) file.  The topics in that file are organized by the application, and sorted into "Stream Topics" (those with `cleanup.policy` = `delete`) and "Table Topics" (with `cleanup.policy` = `compact`).  
 
+Every application has a `dlqTopics` list for dead-letter topic names. Add names to that list to provision DLQs with the same application enablement setting as its other topics; empty lists create no DLQs. DLQ settings are shared across all applications: `KAFKA_DLQ_TOPIC_PARTITIONS` defaults to 4 and `KAFKA_DLQ_TOPIC_RETENTION_MS` defaults to 604800000 (seven days). Replicas and minimum in-sync replicas use the existing common topic settings.
+
+ODE raw topics remain in `apps.ode.streamTopics` and use the existing stream-topic creation settings, including `KAFKA_TOPIC_PARTITIONS` (default 1) and `KAFKA_TOPIC_RETENTION_MS` (default 300000, or five minutes). FFM quarantine topics are listed separately in `apps.ode.dlqTopics` with the `dlq.` prefix, for example `dlq.OdeRawEncodedBSMJson`. Jikkou creates both lists when `KAFKA_TOPIC_CREATE_ODE` is enabled. DLQ topics default to four partitions and seven days of retention. Run `kafka-setup` successfully before starting ODE. For custom raw-topic names, update both lists: ODE replaces a leading `topic.` with `dlq.` for quarantine, or prepends `dlq.` if there is no `topic.` prefix. Jikkou applies the configured retention, so set any longer retention you need before running setup.
+
 The following enviroment variables can be used to configure Kafka Topic creation.  
 
 | Environment Variable | Description |
@@ -111,7 +117,9 @@ The following enviroment variables can be used to configure Kafka Topic creation
 | `KAFKA_TOPIC_CREATE_DEDUPLICATOR` | Whether to create topics for the Deduplicator |
 | `KAFKA_TOPIC_CREATE_OTHER` | Whether to create topics for other applications, this is only useful when you attach a custom `kafka-topics-values.yaml` file with other topics |
 | `KAFKA_TOPICS_VALUES_FILE` | Path to a custom `kafka-topics-values.yaml` file|
-| `KAFKA_TOPIC_PARTITIONS` | Number of partitions |
+| `KAFKA_TOPIC_PARTITIONS` | Number of partitions for general topics |
+| `KAFKA_DLQ_TOPIC_PARTITIONS` | Partitions for dead-letter topics across all applications (default 4) |
+| `KAFKA_DLQ_TOPIC_RETENTION_MS` | Dead-letter retention across all applications in milliseconds (default 604800000) |
 | `KAFKA_TOPIC_REPLICAS` | Number of replicas |
 | `KAFKA_TOPIC_MIN_INSYNC_REPLICAS` | Minumum number of in-sync replicas (for use with ack=all) |
 | `KAFKA_TOPIC_RETENTION_MS` | Retention time for stream topics, milliseconds |
@@ -159,6 +167,19 @@ Set the `COMPOSE_PROFILES` environmental variable as follows:
   2. `kafka-init` service from [docker-compose-connect](docker-compose-connect.yml)
   3. `kafka` service from [docker-compose-kafka](docker-compose-kafka.yml)
   4. `mongo` and `mongo-setup` services from [docker-compose-mongo](docker-compose-mongo.yml)
+
+### Image maintenance
+
+The Kafka Connect image uses Confluent Platform 8.4.0, with MongoDB Kafka Connector 1.13.0 and Confluent Connect Transforms 1.4.7. See the [Confluent support matrix](https://docs.confluent.io/platform/current/installation/versions-interoperability.html) before upgrading the base image. Base image references use version tags for readability and multi-platform SHA-256 digests to select immutable images; update both when upgrading.
+
+The base image still contains vulnerable OS packages and has no package manager:
+
+- `ca-certificates` ([CVE-2026-114406](https://access.redhat.com/security/vulnerabilities/RHSB-2026-012))
+- `libbrotli` (CVE-2026-111497, fixed in `1.0.9-10.el9_8.1`)
+
+The Dockerfile upgrades the packages listed in `UPDATE_PACKAGES` using a UBI 9 build stage, then copies the files of every package that changed, plus the updated RPM metadata, into the runtime image. When `ca-certificates` changes, the build also requires the regenerated trust bundles and replaces the runtime image's generated trust directory. The package manager remains in the build stage. Remove a package from `UPDATE_PACKAGES` once the Connect base image includes its fix, and remove the stage when the list is empty.
+
+The `confluent-hub` client is [deprecated](https://docs.confluent.io/platform/current/connect/confluent-hub/index.html). Future base-image upgrades may require migrating plugin installation to `confluent connect plugin install`.
 
 ### Configure Kafka Connector Creation
 
