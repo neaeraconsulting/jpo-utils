@@ -112,6 +112,9 @@ apps:
       - topicName: topic.ProcessedRtcm
         collectionName: ProcessedRtcm
         generateTimestamp: true
+      - topicName: topic.ProcessedTim
+        collectionName: ProcessedTim
+        generateTimestamp: true
   intersection_api:
     name: intersection_api
     connectors:
@@ -201,9 +204,11 @@ apps:
       - topicName: topic.CmTimestampDeltaEvent
         collectionName: CmTimestampDeltaEvent
         useTimestamp: true
+        timestampField: eventGeneratedAt
       - topicName: topic.CmSpatTransitionEvent
         collectionName: CmSpatTransitionEvent
         useTimestamp: true
+        timestampField: eventGeneratedAt
       - topicName: topic.CmEventStateProgressionEvent
         collectionName: CmEventStateProgressionEvent
         useTimestamp: true
@@ -224,11 +229,11 @@ apps:
         collectionName: CmRevocableEnabledLaneAlignmentEvent
         useTimestamp: true
         timestampField: eventGeneratedAt
-      - topicName: topic.CmRtcmBroadcastRateEvent
+      - topicName: topic.CmRtcmBroadcastRateEvents
         collectionName: CmRtcmBroadcastRateEvent
         useTimestamp: true
         timestampField: eventGeneratedAt
-      - topicName: topic.CmRtcmMinimumDataEvent
+      - topicName: topic.CmRtcmMinimumDataEvents
         collectionName: CmRtcmMinimumDataEvent
         useTimestamp: true
         timestampField: eventGeneratedAt
@@ -341,6 +346,7 @@ apps:
       - topicName: topic.CmIntersectionReferenceAlignmentNotification
         collectionName: CmIntersectionReferenceAlignmentNotification
         useTimestamp: true
+        timestampField: notificationGeneratedAt
       - topicName: topic.CmSpatTransitionNotification
         collectionName: CmSpatTransitionNotification
         useTimestamp: true
